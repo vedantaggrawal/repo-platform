@@ -6,7 +6,7 @@ metadata:
 spec:
   generators:
     - git:
-        repoURL: https://github.com/vedantaggrawal/repo-platform.git
+        repoURL: https://github.com/vedantaggrawal/repo-app-gitops.git
         revision: HEAD
         directories:
           - path: 'apps/*/*'
