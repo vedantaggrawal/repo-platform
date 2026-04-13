@@ -21,7 +21,7 @@ spec:
     metadata:
       name: '{{env}}-{{path[1]}}'
       annotations:
-        argocd.argoproj.io/sync-wave: "-1"
+        argocd.argoproj.io/sync-wave: '{{syncWave}}'
     spec:
       project: default
       sources:
