@@ -1,0 +1,4 @@
+env: stg
+cluster: https://kubernetes.stg.svc
+helmChartRevision: HEAD
+prune: true

@@ -1,0 +1,4 @@
+env: prod
+cluster: https://kubernetes.prod.svc
+helmChartRevision: "0.1.0"
+prune: false

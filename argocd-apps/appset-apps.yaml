@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps-onboarding
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/vedantaggrawal/repo-platform-gitops.git
+              revision: HEAD
+              files:
+                - path: 'clusters/*.yaml'
+          - git:
+              repoURL: https://github.com/vedantaggrawal/repo-app-gitops.git
+              revision: main
+              directories:
+                - path: 'apps/*'
+  template:
+    metadata:
+      name: '{{env}}-{{path[1]}}'
+      annotations:
+        argocd.argoproj.io/sync-wave: "0"
+    spec:
+      project: default
+      sources:
+        - repoURL: https://github.com/vedantaggrawal/repo-helm-chart.git
+          path: .
+          targetRevision: '{{helmChartRevision}}'
+          helm:
+            valueFiles:
+              - $values/apps/{{path[1]}}/{{env}}/values.yaml
+        - repoURL: https://github.com/vedantaggrawal/repo-app-gitops.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: '{{cluster}}'
+        namespace: '{{path[1]}}'
+      syncPolicy:
+        automated:
+          prune: {{prune}}
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 2m
