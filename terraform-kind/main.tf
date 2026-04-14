@@ -8,6 +8,28 @@ resource "kind_cluster" "default" {
 
     node {
       role = "control-plane"
+
+      # Required for ingress-nginx: expose host ports 80/443 into the cluster
+      extra_port_mappings {
+        container_port = 80
+        host_port      = 80
+        protocol       = "TCP"
+      }
+
+      extra_port_mappings {
+        container_port = 443
+        host_port      = 443
+        protocol       = "TCP"
+      }
+
+      kubeadm_config_patches = [
+        <<-EOT
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+        EOT
+      ]
     }
 
     node {
