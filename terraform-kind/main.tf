@@ -12,13 +12,13 @@ resource "kind_cluster" "default" {
       # Required for ingress-nginx: expose host ports 80/443 into the cluster
       extra_port_mappings {
         container_port = 80
-        host_port      = 80
+        host_port      = 10080
         protocol       = "TCP"
       }
 
       extra_port_mappings {
         container_port = 443
-        host_port      = 443
+        host_port      = 10443
         protocol       = "TCP"
       }
 
@@ -55,6 +55,37 @@ resource "helm_release" "argocd" {
   }
 }
 
+# Pre-create the app namespace so the image pull secret exists before ArgoCD first syncs
+resource "kubernetes_namespace" "devops_test_webserver" {
+  metadata {
+    name = "devops-test-webserver"
+  }
+
+  depends_on = [kind_cluster.default]
+}
+
+# Image pull secret for ghcr.io — matches the imagePullSecrets reference in app values
+resource "kubernetes_secret" "ghcr_pull_secret" {
+  metadata {
+    name      = "ghcr-pull-secret"
+    namespace = kubernetes_namespace.devops_test_webserver.metadata[0].name
+  }
+
+  type = "kubernetes.io/dockerconfigjson"
+
+  data = {
+    ".dockerconfigjson" = jsonencode({
+      auths = {
+        "ghcr.io" = {
+          username = "vedantaggrawal"
+          password = var.github_auth_token
+          auth     = base64encode("vedantaggrawal:${var.github_auth_token}")
+        }
+      }
+    })
+  }
+}
+
 # Creates a global credential template granting ArgoCD access to any organizational repository
 resource "kubernetes_secret" "repo_platform_creds" {
   metadata {
@@ -74,9 +105,9 @@ resource "kubernetes_secret" "repo_platform_creds" {
 
 # Automatically bootsrap the root GitOps mechanism via kubectl to seal the loop
 resource "null_resource" "bootstrap_argocd" {
-  depends_on = [helm_release.argocd, kubernetes_secret.repo_platform_creds]
+  depends_on = [helm_release.argocd, kubernetes_secret.repo_platform_creds, kubernetes_secret.ghcr_pull_secret]
 
   provisioner "local-exec" {
-    command = "kind export kubeconfig --name ${var.cluster_name} && kubectl apply -f ../bootstrap/"
+    command = "kind export kubeconfig --name ${var.cluster_name} && kubectl apply -f ../../repo-platform-gitops/bootstrap/${var.environment}.yaml"
   }
 }

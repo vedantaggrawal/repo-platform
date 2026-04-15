@@ -11,8 +11,9 @@ spec:
     repoURL: https://github.com/vedantaggrawal/repo-platform-gitops.git
     targetRevision: HEAD
     path: argocd-apps
-    directory:
-      recurse: true
+    helm:
+      valueFiles:
+        - values-dev.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

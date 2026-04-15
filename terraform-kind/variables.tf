@@ -9,3 +9,9 @@ variable "github_auth_token" {
   description = "GitHub Auth Token (PAT) utilized to authenticate ArgoCD across all organizational Git repositories."
   sensitive   = true
 }
+
+variable "environment" {
+  type        = string
+  description = "The target environment to bootstrap (dev, stg, prod)."
+  default     = "dev"
+}
