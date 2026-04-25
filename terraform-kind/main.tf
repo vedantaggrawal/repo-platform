@@ -89,7 +89,9 @@ resource "helm_release" "argocd" {
           enabled          = true
           ingressClassName = "cilium"
           hostname         = "local.argocd.internal"
-          annotations = {}
+          annotations = {
+            "cert-manager.io/cluster-issuer" = "selfsigned"
+          }
           tls = true
         }
       }
@@ -174,6 +176,42 @@ resource "kubernetes_secret" "repo_platform_creds" {
     url      = "https://github.com/vedantaggrawal"
     username = "vedantaggrawal"
     password = var.github_auth_token
+  }
+}
+
+# cert-manager for automatic TLS certificate provisioning
+resource "helm_release" "cert_manager" {
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  version          = "v1.17.2"
+  namespace        = "cert-manager"
+  create_namespace = true
+
+  depends_on = [kind_cluster.default, helm_release.cilium]
+
+  set {
+    name  = "crds.enabled"
+    value = "true"
+  }
+}
+
+# Self-signed ClusterIssuer for local dev TLS
+resource "null_resource" "self_signed_issuer" {
+  depends_on = [helm_release.cert_manager]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      kind export kubeconfig --name ${var.cluster_name}
+      kubectl apply -f - <<EOF
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: selfsigned
+      spec:
+        selfSigned: {}
+      EOF
+    EOT
   }
 }
 
