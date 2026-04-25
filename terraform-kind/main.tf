@@ -6,10 +6,15 @@ resource "kind_cluster" "default" {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
+    networking {
+      disable_default_cni = true    # Cilium will be installed as the CNI
+      kube_proxy_mode     = "none"  # Cilium replaces kube-proxy via eBPF
+    }
+
     node {
       role = "control-plane"
 
-      # Required for ingress-nginx: expose host ports 80/443 into the cluster
+      # Expose host ports for Cilium ingress controller (hostNetwork mode)
       extra_port_mappings {
         container_port = 80
         host_port      = 10080
@@ -38,6 +43,29 @@ resource "kind_cluster" "default" {
   }
 }
 
+# Gateway API CRDs must exist before Cilium can enable gatewayAPI.
+# No official Helm chart exists; CRDs are distributed as raw YAML from GitHub releases.
+resource "null_resource" "gateway_api_crds" {
+  depends_on = [kind_cluster.default]
+
+  provisioner "local-exec" {
+    command = "kind export kubeconfig --name ${var.cluster_name} && kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml"
+  }
+}
+
+# CNI must be installed before the cluster becomes Ready and before any workloads
+resource "helm_release" "cilium" {
+  name       = "cilium"
+  repository = "https://helm.cilium.io/"
+  chart      = "cilium"
+  version    = "1.19.3"
+  namespace  = "kube-system"
+
+  depends_on = [kind_cluster.default, null_resource.gateway_api_crds]
+
+  values = [file("../../repo-platform-gitops/platform-apps/cilium/local/values.yaml")]
+}
+
 # Core CD Engine deployed automatically upon cluster creation
 resource "helm_release" "argocd" {
   name             = "argo-cd"
@@ -47,12 +75,58 @@ resource "helm_release" "argocd" {
   namespace        = "argocd"
   create_namespace = true
 
-  depends_on = [kind_cluster.default]
+  depends_on = [kind_cluster.default, helm_release.cilium]
 
-  set {
-    name  = "server.service.type"
-    value = "NodePort"
-  }
+  # --- GitHub SSO via Dex + Ingress ---
+
+  values = [
+    yamlencode({
+      server = {
+        service = {
+          type = "ClusterIP"
+        }
+        ingress = {
+          enabled          = true
+          ingressClassName = "cilium"
+          hostname         = "local.argocd.internal"
+          annotations = {}
+          tls = true
+        }
+      }
+      configs = {
+        params = {
+          "server.url"      = "https://local.argocd.internal:10443"
+          "server.insecure" = "true"
+        }
+        cm = {
+          "dex.config" = yamlencode({
+            connectors = [{
+              type = "github"
+              id   = "github"
+              name = "GitHub"
+              config = {
+                clientID     = "$dex.github.clientId"
+                clientSecret = "$dex.github.clientSecret"
+                orgs = [{
+                  name = var.github_org
+                }]
+              }
+            }]
+          })
+        }
+        secret = {
+          extra = {
+            "dex.github.clientId"     = var.github_oauth_client_id
+            "dex.github.clientSecret" = var.github_oauth_client_secret
+          }
+        }
+        rbac = {
+          "policy.default" = "role:readonly"
+          "policy.csv"     = "g, ${var.github_org}:admin, role:admin"
+        }
+      }
+    })
+  ]
 }
 
 # Pre-create the app namespace so the image pull secret exists before ArgoCD first syncs
