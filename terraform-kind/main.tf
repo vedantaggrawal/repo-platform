@@ -97,8 +97,16 @@ resource "helm_release" "argocd" {
       }
       configs = {
         params = {
-          "server.url"      = "https://local.argocd.internal:10443"
-          "server.insecure" = "true"
+          "server.url"                            = "https://local.argocd.internal:10443"
+          "server.insecure"                       = "true"
+          # JSON logs across all ArgoCD components so Loki's | json parser
+          # unpacks fields cleanly. Applies to server, repo-server,
+          # application-controller, applicationset-controller, notifications.
+          "server.log.format"                     = "json"
+          "repo.server.log.format"                = "json"
+          "controller.log.format"                 = "json"
+          "applicationsetcontroller.log.format"   = "json"
+          "notificationscontroller.log.format"    = "json"
         }
         cm = {
           "dex.config" = yamlencode({
