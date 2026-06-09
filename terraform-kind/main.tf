@@ -202,6 +202,20 @@ resource "helm_release" "cert_manager" {
     name  = "crds.enabled"
     value = "true"
   }
+
+  # JSON logs for cert-manager controller, webhook, cainjector.
+  set {
+    name  = "extraArgs[0]"
+    value = "--logging-format=json"
+  }
+  set {
+    name  = "webhook.extraArgs[0]"
+    value = "--logging-format=json"
+  }
+  set {
+    name  = "cainjector.extraArgs[0]"
+    value = "--logging-format=json"
+  }
 }
 
 # Self-signed ClusterIssuer for local dev TLS
