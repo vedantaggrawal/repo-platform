@@ -95,18 +95,23 @@ resource "helm_release" "argocd" {
           tls = true
         }
       }
+      # notifications-controller takes --logformat from a chart-level value,
+      # not the params CM (its hard-coded CLI arg overrides the env).
+      notifications = {
+        logFormat = "json"
+      }
       configs = {
         params = {
           "server.url"                            = "https://local.argocd.internal:10443"
           "server.insecure"                       = "true"
-          # JSON logs across all ArgoCD components so Loki's | json parser
-          # unpacks fields cleanly. Applies to server, repo-server,
-          # application-controller, applicationset-controller, notifications.
+          # JSON logs for the remaining ArgoCD components so Loki's
+          # | json parser unpacks fields cleanly. Key names match the
+          # env-var bindings the chart wires per component (note:
+          # repo-server uses `reposerver.log.format`, not `repo.server`).
           "server.log.format"                     = "json"
-          "repo.server.log.format"                = "json"
+          "reposerver.log.format"                 = "json"
           "controller.log.format"                 = "json"
           "applicationsetcontroller.log.format"   = "json"
-          "notificationscontroller.log.format"    = "json"
         }
         cm = {
           "dex.config" = yamlencode({
