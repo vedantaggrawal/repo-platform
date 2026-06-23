@@ -4,3 +4,4 @@
 *.tfstate
 *.tfstate.*
 devops-local-config
+tfplan
