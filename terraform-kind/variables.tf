@@ -12,8 +12,10 @@ variable "github_auth_token" {
 
 variable "environment" {
   type        = string
-  description = "The target environment to bootstrap (dev, stg, prod)."
-  default     = "dev"
+  description = "The target environment to bootstrap (local, dev, stg, prod)."
+  # kind clusters run the local env; "dev" bootstrapped a second root alongside
+  # local on the same cluster.
+  default = "local"
 }
 
 variable "github_oauth_client_id" {
