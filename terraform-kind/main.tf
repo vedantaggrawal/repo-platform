@@ -138,6 +138,81 @@ resource "helm_release" "argocd" {
     type  = "string"
   }
 
+  # --- SSO via the platform Keycloak (realm `platform`, which brokers GitHub) ---
+  # Public client with PKCE, so no client secret. Replaces Dex/GitHub. Only the
+  # Keycloak group platform-admins gets access; every other login gets nothing.
+  # Break-glass: the local `admin` account (argocd-initial-admin-secret).
+  # Needs in-cluster DNS for local.keycloak.internal (CoreDNS rewrite) and trusts
+  # Keycloak's certificate through the trust-manager ConfigMap platform-ca-bundle,
+  # mounted optional so a fresh cluster still bootstraps before it exists.
+  # Helm `set` parses commas as separators, hence the escaping.
+  set {
+    name  = "configs.cm.url"
+    value = "https://local.argocd.internal:30443"
+  }
+  set {
+    name  = "server.volumes[0].name"
+    value = "platform-ca"
+  }
+  set {
+    name  = "server.volumes[0].configMap.name"
+    value = "platform-ca-bundle"
+  }
+  set {
+    name  = "server.volumes[0].configMap.optional"
+    value = "true"
+  }
+  set {
+    name  = "server.volumeMounts[0].name"
+    value = "platform-ca"
+  }
+  set {
+    name  = "server.volumeMounts[0].mountPath"
+    value = "/etc/platform-ca"
+  }
+  set {
+    name  = "server.volumeMounts[0].readOnly"
+    value = "true"
+  }
+  set {
+    name  = "server.env[0].name"
+    value = "SSL_CERT_DIR"
+  }
+  set {
+    name  = "server.env[0].value"
+    value = "/etc/ssl/certs:/etc/platform-ca"
+  }
+  set {
+    name  = "dex.enabled"
+    value = "false"
+  }
+  set {
+    name  = "configs.cm.dex\\.config"
+    value = ""
+    type  = "string"
+  }
+  set {
+    name = "configs.cm.oidc\\.config"
+    value = replace(yamlencode({
+      name                     = "Keycloak"
+      issuer                   = "https://local.keycloak.internal:30443/realms/platform"
+      clientID                 = "argocd"
+      enablePKCEAuthentication = true
+      requestedScopes          = ["openid", "profile", "email", "groups"]
+    }), ",", "\\,")
+    type = "string"
+  }
+  set {
+    name  = "configs.rbac.policy\\.default"
+    value = ""
+    type  = "string"
+  }
+  set {
+    name  = "configs.rbac.policy\\.csv"
+    value = "g\\, platform-admins\\, role:admin"
+    type  = "string"
+  }
+
   depends_on = [kind_cluster.default, helm_release.cilium]
 
   # --- GitHub SSO via Dex + Ingress ---
@@ -313,3 +388,4 @@ resource "null_resource" "bootstrap_argocd" {
     command = "kind export kubeconfig --name ${var.cluster_name} && kubectl apply -f ../../repo-platform-gitops/bootstrap/${var.environment}.yaml"
   }
 }
+
