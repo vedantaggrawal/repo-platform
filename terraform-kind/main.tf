@@ -111,6 +111,33 @@ resource "helm_release" "argocd" {
     value = "2Gi"
   }
 
+  # Cilium's ingress runs in hostNetwork mode without a LoadBalancer Service, so
+  # no Ingress ever gets status.loadBalancer and Argo's built-in check leaves
+  # every Ingress (and its app) Progressing forever. Cilium (or default-class)
+  # Ingresses are Healthy; any other class keeps the load balancer check, so an
+  # Ingress no controller serves still shows Progressing.
+  set {
+    name  = "configs.cm.resource\\.customizations\\.health\\.networking\\.k8s\\.io_Ingress"
+    value = <<-EOT
+      hs = {}
+      local class = obj.spec and obj.spec.ingressClassName
+      if class == nil or class == "cilium" then
+        hs.status = "Healthy"
+        hs.message = "Cilium hostNetwork ingress sets no load balancer status"
+        return hs
+      end
+      local lb = obj.status and obj.status.loadBalancer and obj.status.loadBalancer.ingress
+      if lb ~= nil and #lb > 0 then
+        hs.status = "Healthy"
+      else
+        hs.status = "Progressing"
+        hs.message = "Waiting for load balancer address"
+      end
+      return hs
+    EOT
+    type  = "string"
+  }
+
   depends_on = [kind_cluster.default, helm_release.cilium]
 
   # --- GitHub SSO via Dex + Ingress ---
