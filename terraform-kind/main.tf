@@ -71,9 +71,33 @@ resource "helm_release" "argocd" {
   name             = "argo-cd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
-  version          = "6.7.1"
+  version          = "9.3.7" # Argo CD v3.2.6: newest minor tested on k8s 1.31
   namespace        = "argocd"
   create_namespace = true
+
+  # Chart 7+ derives argocd-cm `url` and the ingress host from global.domain
+  # when they are not set explicitly.
+  set {
+    name  = "global.domain"
+    value = "local.argocd.internal"
+  }
+
+  # Argo CD 3.0 switched the default tracking method to annotation; keep label
+  # tracking so existing resources are not re-adopted or shown OutOfSync.
+  set {
+    name  = "configs.cm.application\\.resourceTrackingMethod"
+    value = "label"
+  }
+
+  # Newer charts default to Redis 8.x; stay on the BSD-licensed 7.2 line.
+  set {
+    name  = "redis.image.repository"
+    value = "public.ecr.aws/docker/library/redis"
+  }
+  set {
+    name  = "redis.image.tag"
+    value = "7.2.16-alpine"
+  }
 
   depends_on = [kind_cluster.default, helm_release.cilium]
 
