@@ -99,6 +99,18 @@ resource "helm_release" "argocd" {
     value = "7.2.16-alpine"
   }
 
+  # The controller caches every watched cluster resource: ~0.8-0.9Gi steady here
+  # with ~35 apps, and more while it rebuilds the cache on start. These sets
+  # win over the controller resources in `values`.
+  set {
+    name  = "controller.resources.requests.memory"
+    value = "1Gi"
+  }
+  set {
+    name  = "controller.resources.limits.memory"
+    value = "2Gi"
+  }
+
   depends_on = [kind_cluster.default, helm_release.cilium]
 
   # --- GitHub SSO via Dex + Ingress ---
