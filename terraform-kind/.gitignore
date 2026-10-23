@@ -1,3 +1,5 @@
+# kind provider writes <name>-config (kubeconfig with client key) here
+*-config
 *.tfvars
 .terraform/
 .terraform.lock.hcl
