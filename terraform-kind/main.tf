@@ -123,10 +123,10 @@ resource "helm_release" "argocd" {
         resources = {
           requests = {
             cpu    = "100m"
-            memory = "512Mi"
+            memory = "768Mi"
           }
           limits = {
-            memory = "512Mi"
+            memory = "1536Mi"
           }
         }
       }
