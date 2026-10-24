@@ -162,6 +162,25 @@ resource "helm_release" "argocd" {
             memory = "128Mi"
           }
         }
+        # Trust the platform CA so OIDC discovery to Authentik verifies. Secret
+        # platform-ca is delivered by ESO (repo-platform-gitops, secret-stores);
+        # optional, because Terraform installs Argo CD before ESO exists.
+        env = [{
+          name  = "SSL_CERT_DIR"
+          value = "/etc/ssl/certs:/etc/platform-ca"
+        }]
+        volumes = [{
+          name = "platform-ca"
+          secret = {
+            secretName = "platform-ca"
+            optional   = true
+          }
+        }]
+        volumeMounts = [{
+          name      = "platform-ca"
+          mountPath = "/etc/platform-ca"
+          readOnly  = true
+        }]
         service = {
           type = "ClusterIP"
         }
@@ -201,6 +220,22 @@ resource "helm_release" "argocd" {
           # the browser hits (kind maps container 443 -> host 30443). It belongs
           # in argocd-cm; `server.url` under params is not a valid key.
           "url" = "https://local.argocd.internal:30443"
+          # SSO via Authentik (public client `argocd`, PKCE; GitHub login is
+          # federated there). Groups arrive in the `profile` scope. The local
+          # admin stays as break-glass.
+          "oidc.config" = yamlencode({
+            name                     = "Authentik"
+            issuer                   = "https://local.authentik.internal:30443/application/o/argocd/"
+            clientID                 = "argocd"
+            enablePKCEAuthentication = true
+            requestedScopes          = ["openid", "profile", "email"]
+          })
+        }
+        rbac = {
+          # Deny by default; members of Authentik group platform-admins are admins.
+          "policy.default" = ""
+          "policy.csv"     = "g, platform-admins, role:admin"
+          "scopes"         = "[groups]"
         }
       }
     })
