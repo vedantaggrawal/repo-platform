@@ -2,7 +2,8 @@ name: claude-review
 
 # AI review of every PR. Mention `@claude` in a PR comment, an inline review
 # comment or a submitted review to get an explanation, a discussion, or a fix
-# (ask it to change something and it commits to the PR branch).
+# (ask it to change something and it commits to the PR branch). It never runs
+# on PRs from forks.
 # Needs the repo secret ANTHROPIC_API_KEY; without it (e.g. fork PRs, which get
 # no secrets) the job logs a notice and succeeds without reviewing.
 # Model: claude-opus-5-5 for review quality; switch --model to claude-sonnet-5-5
@@ -20,13 +21,12 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   review:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -105,6 +105,9 @@ jobs:
       (github.event_name == 'pull_request_review' &&
        contains(github.event.review.body, '@claude') &&
        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association))
+    concurrency:
+      group: claude-mention-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -112,6 +115,18 @@ jobs:
       pull-requests: write
       issues: write
     steps:
+      # Comment events run with secrets and a write token even on fork PRs:
+      # never let a fork's code reach a write-capable run.
+      - id: fork
+        name: Refuse fork PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          if [[ "$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json isCrossRepository --jq .isCrossRepository)" == "true" ]]; then
+            echo "::notice::PR comes from a fork; not running."; echo "fork=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - id: key
         name: Check for API key
         env:
@@ -120,12 +135,12 @@ jobs:
           if [[ -n "$ANTHROPIC_API_KEY" ]]; then echo "present=true" >> "$GITHUB_OUTPUT"
           else echo "::notice::ANTHROPIC_API_KEY not set; skipping."; fi
 
-      - if: steps.key.outputs.present == 'true'
+      - if: steps.key.outputs.present == 'true' && steps.fork.outputs.fork != 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - if: steps.key.outputs.present == 'true'
+      - if: steps.key.outputs.present == 'true' && steps.fork.outputs.fork != 'true'
         uses: anthropics/claude-code-action@ae68417a745a5df4b2124873632bd73a2255e6f6 # v1.0.259
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
