@@ -5,3 +5,4 @@
 *.tfstate.*
 devops-local-config
 tfplan
+kind-*

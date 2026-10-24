@@ -1,7 +1,7 @@
 variable "cluster_name" {
   type        = string
   description = "The name of the local Kind cluster."
-  default     = "devops-test"
+  default     = "kind-local-01"
 }
 
 variable "github_auth_token" {

@@ -17,13 +17,13 @@ resource "kind_cluster" "default" {
       # Expose host ports for Cilium ingress controller (hostNetwork mode)
       extra_port_mappings {
         container_port = 80
-        host_port      = 10080
+        host_port      = 30080
         protocol       = "TCP"
       }
 
       extra_port_mappings {
         container_port = 443
-        host_port      = 10443
+        host_port      = 30443
         protocol       = "TCP"
       }
 
@@ -53,6 +53,24 @@ resource "null_resource" "gateway_api_crds" {
   }
 }
 
+# Cilium creates Grafana dashboard ConfigMaps in the monitoring namespace at install time.
+resource "kubernetes_namespace" "monitoring" {
+  metadata {
+    name = "monitoring"
+  }
+
+  depends_on = [kind_cluster.default]
+}
+
+# Prometheus Operator CRDs must exist before Cilium can create ServiceMonitor resources.
+resource "null_resource" "prometheus_operator_crds" {
+  depends_on = [kind_cluster.default]
+
+  provisioner "local-exec" {
+    command = "kind export kubeconfig --name ${var.cluster_name} && kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.82.0/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml"
+  }
+}
+
 # CNI must be installed before the cluster becomes Ready and before any workloads
 resource "helm_release" "cilium" {
   name       = "cilium"
@@ -61,7 +79,17 @@ resource "helm_release" "cilium" {
   version    = "1.19.3"
   namespace  = "kube-system"
 
-  depends_on = [kind_cluster.default, null_resource.gateway_api_crds]
+  depends_on = [kind_cluster.default, null_resource.gateway_api_crds, null_resource.prometheus_operator_crds, kubernetes_namespace.monitoring]
+
+  set {
+    name  = "k8sServiceHost"
+    value = "${var.cluster_name}-control-plane"
+  }
+
+  set {
+    name  = "k8sServicePort"
+    value = "6443"
+  }
 
   values = [file("../../repo-platform-gitops/platform-apps/cilium/local/values.yaml")]
 }
@@ -80,7 +108,60 @@ resource "helm_release" "argocd" {
   # Ingress only. Login is the local admin until Argo CD moves to Authentik (OIDC).
   values = [
     yamlencode({
+      global = {
+        resources = {
+          requests = {
+            cpu    = "50m"
+            memory = "128Mi"
+          }
+          limits = {
+            memory = "128Mi"
+          }
+        }
+      }
+      controller = {
+        resources = {
+          requests = {
+            cpu    = "100m"
+            memory = "512Mi"
+          }
+          limits = {
+            memory = "512Mi"
+          }
+        }
+      }
+      repoServer = {
+        resources = {
+          requests = {
+            cpu    = "100m"
+            memory = "512Mi"
+          }
+          limits = {
+            memory = "512Mi"
+          }
+        }
+      }
+      applicationSet = {
+        resources = {
+          requests = {
+            cpu    = "50m"
+            memory = "128Mi"
+          }
+          limits = {
+            memory = "128Mi"
+          }
+        }
+      }
       server = {
+        resources = {
+          requests = {
+            cpu    = "50m"
+            memory = "128Mi"
+          }
+          limits = {
+            memory = "128Mi"
+          }
+        }
         service = {
           type = "ClusterIP"
         }
@@ -105,7 +186,6 @@ resource "helm_release" "argocd" {
       }
       configs = {
         params = {
-          "server.url"                            = "https://local.argocd.internal:30443"
           "server.insecure"                       = "true"
           # JSON logs for the remaining ArgoCD components so Loki's
           # | json parser unpacks fields cleanly. Key names match the
@@ -115,6 +195,12 @@ resource "helm_release" "argocd" {
           "reposerver.log.format"                 = "json"
           "controller.log.format"                 = "json"
           "applicationsetcontroller.log.format"   = "json"
+        }
+        cm = {
+          # Base URL Argo CD advertises (SSO callbacks, links). Must match what
+          # the browser hits (kind maps container 443 -> host 30443). It belongs
+          # in argocd-cm; `server.url` under params is not a valid key.
+          "url" = "https://local.argocd.internal:30443"
         }
       }
     })
