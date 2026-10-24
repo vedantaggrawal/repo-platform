@@ -13,7 +13,7 @@ resource "kubernetes_namespace" "platform_seed" {
 # GitHub OAuth app for "Log in with GitHub" in Authentik. Its callback is
 # https://local.authentik.internal:30443/source/oauth/callback/github/
 resource "kubernetes_secret" "authentik_github_oauth" {
-  count = var.authentik_github_client_id != "" ? 1 : 0
+  count = var.authentik_github_client_id != "" && var.authentik_github_client_secret != "" ? 1 : 0
 
   metadata {
     name      = "authentik-github-oauth"

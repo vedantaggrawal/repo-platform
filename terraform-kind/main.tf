@@ -94,6 +94,10 @@ resource "helm_release" "argocd" {
           tls = true
         }
       }
+      # No Dex: Argo CD gets OIDC from Authentik directly.
+      dex = {
+        enabled = false
+      }
       # notifications-controller takes --logformat from a chart-level value,
       # not the params CM (its hard-coded CLI arg overrides the env).
       notifications = {
@@ -101,7 +105,7 @@ resource "helm_release" "argocd" {
       }
       configs = {
         params = {
-          "server.url"                            = "https://local.argocd.internal:10443"
+          "server.url"                            = "https://local.argocd.internal:30443"
           "server.insecure"                       = "true"
           # JSON logs for the remaining ArgoCD components so Loki's
           # | json parser unpacks fields cleanly. Key names match the
