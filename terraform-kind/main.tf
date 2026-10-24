@@ -77,8 +77,7 @@ resource "helm_release" "argocd" {
 
   depends_on = [kind_cluster.default, helm_release.cilium]
 
-  # --- GitHub SSO via Dex + Ingress ---
-
+  # Ingress only. Login is the local admin until Argo CD moves to Authentik (OIDC).
   values = [
     yamlencode({
       server = {
@@ -95,6 +94,10 @@ resource "helm_release" "argocd" {
           tls = true
         }
       }
+      # No Dex: Argo CD gets OIDC from Authentik directly.
+      dex = {
+        enabled = false
+      }
       # notifications-controller takes --logformat from a chart-level value,
       # not the params CM (its hard-coded CLI arg overrides the env).
       notifications = {
@@ -102,7 +105,7 @@ resource "helm_release" "argocd" {
       }
       configs = {
         params = {
-          "server.url"                            = "https://local.argocd.internal:10443"
+          "server.url"                            = "https://local.argocd.internal:30443"
           "server.insecure"                       = "true"
           # JSON logs for the remaining ArgoCD components so Loki's
           # | json parser unpacks fields cleanly. Key names match the
@@ -112,32 +115,6 @@ resource "helm_release" "argocd" {
           "reposerver.log.format"                 = "json"
           "controller.log.format"                 = "json"
           "applicationsetcontroller.log.format"   = "json"
-        }
-        cm = {
-          "dex.config" = yamlencode({
-            connectors = [{
-              type = "github"
-              id   = "github"
-              name = "GitHub"
-              config = {
-                clientID     = "$dex.github.clientId"
-                clientSecret = "$dex.github.clientSecret"
-                orgs = [{
-                  name = var.github_org
-                }]
-              }
-            }]
-          })
-        }
-        secret = {
-          extra = {
-            "dex.github.clientId"     = var.github_oauth_client_id
-            "dex.github.clientSecret" = var.github_oauth_client_secret
-          }
-        }
-        rbac = {
-          "policy.default" = "role:readonly"
-          "policy.csv"     = "g, ${var.github_org}:admin, role:admin"
         }
       }
     })

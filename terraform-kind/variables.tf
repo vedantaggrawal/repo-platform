@@ -18,20 +18,15 @@ variable "environment" {
   default = "local"
 }
 
-variable "github_oauth_client_id" {
+variable "authentik_github_client_id" {
   type        = string
-  description = "GitHub OAuth App Client ID for ArgoCD SSO."
-  sensitive   = true
+  description = "Client ID of the GitHub OAuth app for Authentik login. Empty skips seeding it."
+  default     = ""
 }
 
-variable "github_oauth_client_secret" {
+variable "authentik_github_client_secret" {
   type        = string
-  description = "GitHub OAuth App Client Secret for ArgoCD SSO."
+  description = "Client secret of the GitHub OAuth app for Authentik login."
+  default     = ""
   sensitive   = true
-}
-
-variable "github_org" {
-  type        = string
-  description = "GitHub organization name used for ArgoCD SSO team-based access control."
-  default     = "vedantaggrawal"
 }
