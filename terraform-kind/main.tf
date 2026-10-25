@@ -230,16 +230,6 @@ resource "helm_release" "argocd" {
             enablePKCEAuthentication = true
             requestedScopes          = ["openid", "profile", "email"]
           })
-          # Fields the API server or a cert controller sets but charts don't
-          # render: empty container `resources` and webhook caBundle. Without
-          # this they diff forever and self-heal re-applies on every reconcile.
-          "resource.customizations.ignoreDifferences.all" = yamlencode({
-            jqPathExpressions = [
-              ".spec.template.spec.containers[]?.resources | select(. == {})",
-              ".spec.template.spec.initContainers[]?.resources | select(. == {})",
-              ".webhooks[]?.clientConfig.caBundle",
-            ]
-          })
         }
         rbac = {
           # Deny by default; members of Authentik group platform-admins are admins.
