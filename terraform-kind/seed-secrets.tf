@@ -25,3 +25,18 @@ resource "kubernetes_secret" "authentik_github_oauth" {
     client_secret = var.authentik_github_client_secret
   }
 }
+
+# Slack incoming webhook for Mimir Alertmanager. Alertmanager reads it from a
+# file (api_url_file), so the URL never appears in config.
+resource "kubernetes_secret" "alert_slack" {
+  count = var.alert_slack_webhook != "" ? 1 : 0
+
+  metadata {
+    name      = "alert-slack"
+    namespace = kubernetes_namespace.platform_seed.metadata[0].name
+  }
+
+  data = {
+    webhook_url = var.alert_slack_webhook
+  }
+}

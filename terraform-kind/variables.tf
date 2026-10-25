@@ -36,3 +36,10 @@ variable "gitops_ref" {
   type        = string
   default     = "main"
 }
+
+variable "alert_slack_webhook" {
+  type        = string
+  description = "Slack incoming-webhook URL for Mimir Alertmanager notifications. Empty skips seeding it."
+  default     = ""
+  sensitive   = true
+}
