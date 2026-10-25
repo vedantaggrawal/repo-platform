@@ -214,6 +214,12 @@ resource "helm_release" "argocd" {
           # the browser hits (kind maps container 443 -> host 30443). It belongs
           # in argocd-cm; `server.url` under params is not a valid key.
           "url" = "https://local.argocd.internal:30443"
+          # Track resources by annotation (argocd.argoproj.io/tracking-id), the
+          # Argo CD 3.0 default; avoids label clashes. Apps must be synced once
+          # after the switch. Pin the reconcile interval explicitly so the chart
+          # bump does not change it (chart 10 defaults to 120s + jitter).
+          "application.resourceTrackingMethod" = "annotation"
+          "timeout.reconciliation"             = "180s"
           # SSO via Authentik (public client `argocd`, PKCE; GitHub login is
           # federated there). Groups arrive in the `profile` scope. The local
           # admin stays as break-glass.
