@@ -62,6 +62,19 @@ resource "null_resource" "prometheus_operator_crds" {
 }
 
 # CNI must be installed before the cluster becomes Ready and before any workloads
+# Cilium's values live in the gitops repo. Read them from the published ref, not a
+# sibling working copy: a stale local checkout silently applied old values (twice).
+data "http" "cilium_values" {
+  url = "https://raw.githubusercontent.com/vedantaggrawal/repo-platform-gitops/${var.gitops_ref}/platform-apps/cilium/local/values.yaml"
+
+  lifecycle {
+    postcondition {
+      condition     = self.status_code == 200
+      error_message = "Could not fetch Cilium values from repo-platform-gitops@${var.gitops_ref}."
+    }
+  }
+}
+
 resource "helm_release" "cilium" {
   name       = "cilium"
   repository = "https://helm.cilium.io/"
@@ -81,7 +94,7 @@ resource "helm_release" "cilium" {
     value = "6443"
   }
 
-  values = [file("../../repo-platform-gitops/platform-apps/cilium/local/values.yaml")]
+  values = [data.http.cilium_values.response_body]
 }
 
 # Core CD Engine deployed automatically upon cluster creation
@@ -345,6 +358,6 @@ resource "null_resource" "bootstrap_argocd" {
   depends_on = [helm_release.argocd, kubernetes_secret.repo_platform_creds, kubernetes_secret.ghcr_pull_secret]
 
   provisioner "local-exec" {
-    command = "kind export kubeconfig --name ${var.cluster_name} && kubectl apply -f ../../repo-platform-gitops/bootstrap/${var.environment}.yaml"
+    command = "kind export kubeconfig --name ${var.cluster_name} && kubectl apply -f https://raw.githubusercontent.com/vedantaggrawal/repo-platform-gitops/${var.gitops_ref}/bootstrap/${var.environment}.yaml"
   }
 }

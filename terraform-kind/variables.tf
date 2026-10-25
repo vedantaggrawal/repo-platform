@@ -30,3 +30,9 @@ variable "authentik_github_client_secret" {
   default     = ""
   sensitive   = true
 }
+
+variable "gitops_ref" {
+  description = "repo-platform-gitops git ref (branch, tag or SHA) that Terraform reads bootstrap config from"
+  type        = string
+  default     = "main"
+}
