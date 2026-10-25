@@ -224,6 +224,28 @@ resource "helm_release" "argocd" {
           # the browser hits (kind maps container 443 -> host 30443). It belongs
           # in argocd-cm; `server.url` under params is not a valid key.
           "url" = "https://local.argocd.internal:30443"
+          # Cilium's ingress runs in hostNetwork mode with no LoadBalancer
+          # Service, so no Ingress ever gets status.loadBalancer and the
+          # built-in check leaves it (and its app) Progressing forever.
+          # cilium/default-class Ingresses are Healthy; other classes keep the
+          # load-balancer check, so an Ingress nothing serves still shows.
+          "resource.customizations.health.networking.k8s.io_Ingress" = <<-EOT
+            hs = {}
+            local class = obj.spec and obj.spec.ingressClassName
+            if class == nil or class == "cilium" then
+              hs.status = "Healthy"
+              hs.message = "Cilium hostNetwork ingress sets no load balancer status"
+              return hs
+            end
+            local lb = obj.status and obj.status.loadBalancer and obj.status.loadBalancer.ingress
+            if lb ~= nil and #lb > 0 then
+              hs.status = "Healthy"
+            else
+              hs.status = "Progressing"
+              hs.message = "Waiting for load balancer address"
+            end
+            return hs
+          EOT
           # SSO via Authentik (public client `argocd`, PKCE; GitHub login is
           # federated there). Groups arrive in the `profile` scope. The local
           # admin stays as break-glass.
