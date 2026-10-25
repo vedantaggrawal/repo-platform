@@ -43,16 +43,6 @@ resource "kind_cluster" "default" {
   }
 }
 
-# Gateway API CRDs must exist before Cilium can enable gatewayAPI.
-# No official Helm chart exists; CRDs are distributed as raw YAML from GitHub releases.
-resource "null_resource" "gateway_api_crds" {
-  depends_on = [kind_cluster.default]
-
-  provisioner "local-exec" {
-    command = "kind export kubeconfig --name ${var.cluster_name} && kubectl apply --server-side --force-conflicts -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.1/standard-install.yaml"
-  }
-}
-
 # Cilium creates Grafana dashboard ConfigMaps in the monitoring namespace at install time.
 resource "kubernetes_namespace" "monitoring" {
   metadata {
@@ -79,7 +69,7 @@ resource "helm_release" "cilium" {
   version    = "1.19.3"
   namespace  = "kube-system"
 
-  depends_on = [kind_cluster.default, null_resource.gateway_api_crds, null_resource.prometheus_operator_crds, kubernetes_namespace.monitoring]
+  depends_on = [kind_cluster.default, null_resource.prometheus_operator_crds, kubernetes_namespace.monitoring]
 
   set {
     name  = "k8sServiceHost"
