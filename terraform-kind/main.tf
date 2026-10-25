@@ -214,11 +214,6 @@ resource "helm_release" "argocd" {
           "reposerver.log.format"                 = "json"
           "controller.log.format"                 = "json"
           "applicationsetcontroller.log.format"   = "json"
-          # Diff with an SSA dry-run, matching how apps are applied. The
-          # client-side diff counts fields owned by other managers (webhook
-          # caBundle, defaulted `resources: {}`) as drift: perpetual OutOfSync
-          # plus a self-heal loop. Default with SSA upstream since v3.
-          "controller.diff.server.side"           = "true"
         }
         cm = {
           # Base URL Argo CD advertises (SSO callbacks, links). Must match what
@@ -234,6 +229,16 @@ resource "helm_release" "argocd" {
             clientID                 = "argocd"
             enablePKCEAuthentication = true
             requestedScopes          = ["openid", "profile", "email"]
+          })
+          # Fields the API server or a cert controller sets but charts don't
+          # render: empty container `resources` and webhook caBundle. Without
+          # this they diff forever and self-heal re-applies on every reconcile.
+          "resource.customizations.ignoreDifferences.all" = yamlencode({
+            jqPathExpressions = [
+              ".spec.template.spec.containers[]?.resources | select(. == {})",
+              ".spec.template.spec.initContainers[]?.resources | select(. == {})",
+              ".webhooks[]?.clientConfig.caBundle",
+            ]
           })
         }
         rbac = {
