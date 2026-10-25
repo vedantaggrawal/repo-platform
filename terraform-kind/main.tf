@@ -131,13 +131,14 @@ resource "helm_release" "argocd" {
         }
       }
       repoServer = {
+        # 512Mi OOMKilled when every app re-rendered after a controller restart.
         resources = {
           requests = {
             cpu    = "100m"
-            memory = "512Mi"
+            memory = "1Gi"
           }
           limits = {
-            memory = "512Mi"
+            memory = "1Gi"
           }
         }
       }
@@ -214,6 +215,9 @@ resource "helm_release" "argocd" {
           "reposerver.log.format"                 = "json"
           "controller.log.format"                 = "json"
           "applicationsetcontroller.log.format"   = "json"
+          # Cap concurrent manifest generations so a reconcile storm queues
+          # instead of exhausting repo-server memory (0 = unlimited).
+          "reposerver.parallelism.limit" = "4"
         }
         cm = {
           # Base URL Argo CD advertises (SSO callbacks, links). Must match what
