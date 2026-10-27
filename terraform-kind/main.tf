@@ -102,9 +102,10 @@ resource "helm_release" "argocd" {
   name             = "argo-cd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
-  version          = "6.7.1"
+  version          = "10.11.1"
   namespace        = "argocd"
   create_namespace = true
+  timeout          = 600
 
   depends_on = [kind_cluster.default, helm_release.cilium]
 
@@ -112,6 +113,10 @@ resource "helm_release" "argocd" {
   values = [
     yamlencode({
       global = {
+        # Chart 10 creates NetworkPolicies by default; the kind cluster has none today.
+        networkPolicy = {
+          create = false
+        }
         resources = {
           requests = {
             cpu    = "50m"
