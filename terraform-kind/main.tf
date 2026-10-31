@@ -7,8 +7,8 @@ resource "kind_cluster" "default" {
     api_version = "kind.x-k8s.io/v1alpha4"
 
     networking {
-      disable_default_cni = true    # Cilium will be installed as the CNI
-      kube_proxy_mode     = "none"  # Cilium replaces kube-proxy via eBPF
+      disable_default_cni = true   # Cilium will be installed as the CNI
+      kube_proxy_mode     = "none" # Cilium replaces kube-proxy via eBPF
     }
 
     node {
@@ -128,6 +128,16 @@ resource "helm_release" "argocd" {
         }
       }
       controller = {
+        # Prometheus-format metrics + ServiceMonitor (discovered by the otel-cluster target allocator).
+        # 60s like every platform target; the collector allowlist admits argocd_* names only once a
+        # dashboard or rule references them.
+        metrics = {
+          enabled = true
+          serviceMonitor = {
+            enabled  = true
+            interval = "60s"
+          }
+        }
         resources = {
           requests = {
             cpu    = "100m"
@@ -139,6 +149,16 @@ resource "helm_release" "argocd" {
         }
       }
       repoServer = {
+        # Prometheus-format metrics + ServiceMonitor (discovered by the otel-cluster target allocator).
+        # 60s like every platform target; the collector allowlist admits argocd_* names only once a
+        # dashboard or rule references them.
+        metrics = {
+          enabled = true
+          serviceMonitor = {
+            enabled  = true
+            interval = "60s"
+          }
+        }
         # 512Mi OOMKilled when every app re-rendered after a controller restart.
         resources = {
           requests = {
@@ -151,6 +171,16 @@ resource "helm_release" "argocd" {
         }
       }
       applicationSet = {
+        # Prometheus-format metrics + ServiceMonitor (discovered by the otel-cluster target allocator).
+        # 60s like every platform target; the collector allowlist admits argocd_* names only once a
+        # dashboard or rule references them.
+        metrics = {
+          enabled = true
+          serviceMonitor = {
+            enabled  = true
+            interval = "60s"
+          }
+        }
         resources = {
           requests = {
             cpu    = "50m"
@@ -162,6 +192,16 @@ resource "helm_release" "argocd" {
         }
       }
       server = {
+        # Prometheus-format metrics + ServiceMonitor (discovered by the otel-cluster target allocator).
+        # 60s like every platform target; the collector allowlist admits argocd_* names only once a
+        # dashboard or rule references them.
+        metrics = {
+          enabled = true
+          serviceMonitor = {
+            enabled  = true
+            interval = "60s"
+          }
+        }
         resources = {
           requests = {
             cpu    = "50m"
@@ -210,19 +250,27 @@ resource "helm_release" "argocd" {
       # notifications-controller takes --logformat from a chart-level value,
       # not the params CM (its hard-coded CLI arg overrides the env).
       notifications = {
+        # Prometheus-format metrics + ServiceMonitor (discovered by the otel-cluster target allocator).
+        metrics = {
+          enabled = true
+          serviceMonitor = {
+            enabled  = true
+            interval = "60s"
+          }
+        }
         logFormat = "json"
       }
       configs = {
         params = {
-          "server.insecure"                       = "true"
+          "server.insecure" = "true"
           # JSON logs for the remaining ArgoCD components so Loki's
           # | json parser unpacks fields cleanly. Key names match the
           # env-var bindings the chart wires per component (note:
           # repo-server uses `reposerver.log.format`, not `repo.server`).
-          "server.log.format"                     = "json"
-          "reposerver.log.format"                 = "json"
-          "controller.log.format"                 = "json"
-          "applicationsetcontroller.log.format"   = "json"
+          "server.log.format"                   = "json"
+          "reposerver.log.format"               = "json"
+          "controller.log.format"               = "json"
+          "applicationsetcontroller.log.format" = "json"
           # Cap concurrent manifest generations so a reconcile storm queues
           # instead of exhausting repo-server memory (0 = unlimited).
           "reposerver.parallelism.limit" = "4"
