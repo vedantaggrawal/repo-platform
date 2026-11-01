@@ -385,6 +385,16 @@ resource "helm_release" "cert_manager" {
     name  = "cainjector.extraArgs[0]"
     value = "--logging-format=json"
   }
+
+  # Prometheus-format metrics + ServiceMonitor (discovered by the otel-cluster target allocator), 60s.
+  set {
+    name  = "prometheus.servicemonitor.enabled"
+    value = "true"
+  }
+  set {
+    name  = "prometheus.servicemonitor.interval"
+    value = "60s"
+  }
 }
 
 # Self-signed ClusterIssuer for local dev TLS
