@@ -43,3 +43,9 @@ variable "alert_slack_webhook" {
   default     = ""
   sensitive   = true
 }
+
+variable "grafana_git_sync" {
+  description = "Manage the Grafana Git Sync repository. Set false on the first apply of a new cluster: the grafana-admin Secret only exists after Argo CD and External Secrets have synced."
+  type        = bool
+  default     = true
+}
