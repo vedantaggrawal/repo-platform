@@ -267,8 +267,12 @@ resource "helm_release" "argocd" {
           # | json parser unpacks fields cleanly. Key names match the
           # env-var bindings the chart wires per component (note:
           # repo-server uses `reposerver.log.format`, not `repo.server`).
-          "server.log.format"                   = "json"
-          "reposerver.log.format"               = "json"
+          "server.log.format"     = "json"
+          "reposerver.log.format" = "json"
+          # Server-side diff: the API server dry-runs the apply, so CRD defaults (ServiceMonitor
+          # relabelings[].action) and fields it prunes (hostUsers on 1.31) stop showing as drift.
+          # Without it two apps self-healed ~30 times/hour forever (2026-11-01).
+          "controller.diff.server.side"         = "true"
           "controller.log.format"               = "json"
           "applicationsetcontroller.log.format" = "json"
           # Cap concurrent manifest generations so a reconcile storm queues
