@@ -44,7 +44,7 @@ resource "grafana_apps_provisioning_repository_v0alpha1" "platform_dashboards" {
     github {
       url    = "https://github.com/vedantaggrawal/repo-platform-gitops"
       branch = "main"
-      path   = "platform-apps/grafana/local/dashboards"
+      path   = "platform-apps/observability/grafana/local/dashboards"
     }
   }
   secure {
