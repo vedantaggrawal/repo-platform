@@ -304,7 +304,8 @@ resource "helm_release" "argocd" {
         rbac = {
           # Deny by default; members of Authentik group platform-admins are admins.
           "policy.default" = ""
-          "policy.csv"     = "g, platform-admins, role:admin"
+          # Members of platform-dev and platform-viewer read everything; admins act.
+          "policy.csv"     = "g, platform-admins, role:admin\ng, platform-dev, role:readonly\ng, platform-viewer, role:readonly"
           "scopes"         = "[groups]"
         }
       }
