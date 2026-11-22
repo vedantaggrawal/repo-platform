@@ -236,7 +236,7 @@ resource "helm_release" "argocd" {
         ingress = {
           enabled          = true
           ingressClassName = "cilium"
-          hostname         = "local.argocd.internal"
+          hostname         = "argocd.local.evelab.space"
           annotations = {
             "cert-manager.io/cluster-issuer" = "selfsigned"
           }
@@ -283,7 +283,7 @@ resource "helm_release" "argocd" {
           # Base URL Argo CD advertises (SSO callbacks, links). Must match what
           # the browser hits (kind maps container 443 -> host 30443). It belongs
           # in argocd-cm; `server.url` under params is not a valid key.
-          "url" = "https://local.argocd.internal:30443"
+          "url" = "https://argocd.local.evelab.space:30443"
           # Track resources by annotation (argocd.argoproj.io/tracking-id), the
           # Argo CD 3.0 default; avoids label clashes. Apps must be synced once
           # after the switch. Pin the reconcile interval explicitly so the chart
@@ -295,7 +295,7 @@ resource "helm_release" "argocd" {
           # admin stays as break-glass.
           "oidc.config" = yamlencode({
             name                     = "Authentik"
-            issuer                   = "https://local.authentik.internal:30443/application/o/argocd/"
+            issuer                   = "https://authentik.local.evelab.space:30443/application/o/argocd/"
             clientID                 = "argocd"
             enablePKCEAuthentication = true
             requestedScopes          = ["openid", "profile", "email"]

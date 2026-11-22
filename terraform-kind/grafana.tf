@@ -19,10 +19,10 @@ data "kubernetes_secret" "grafana_admin" {
 }
 
 provider "grafana" {
-  url  = "https://local.grafana.internal:30443"
+  url  = "https://grafana.local.evelab.space:30443"
   auth = try("${data.kubernetes_secret.grafana_admin[0].data["admin-user"]}:${data.kubernetes_secret.grafana_admin[0].data["admin-password"]}", "bootstrap:disabled")
-  # The gateway serves the platform's private CA; Terraform runs on the laptop.
-  insecure_skip_verify = true
+  # Public Let's Encrypt chain on the gateway: verified like any other HTTPS endpoint.
+  insecure_skip_verify = false
 }
 
 resource "grafana_apps_provisioning_repository_v0alpha1" "platform_dashboards" {
