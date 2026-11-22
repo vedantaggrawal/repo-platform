@@ -236,7 +236,7 @@ resource "helm_release" "argocd" {
         ingress = {
           enabled          = true
           ingressClassName = "cilium"
-          hostname         = "argocd.local.evelab.space"
+          hostname         = "argocd.evelab.space"
           annotations = {
             "cert-manager.io/cluster-issuer" = "selfsigned"
           }
@@ -283,7 +283,7 @@ resource "helm_release" "argocd" {
           # Base URL Argo CD advertises (SSO callbacks, links). Must match what
           # the browser hits (kind maps container 443 -> host 30443). It belongs
           # in argocd-cm; `server.url` under params is not a valid key.
-          "url" = "https://argocd.local.evelab.space:30443"
+          "url" = "https://argocd.evelab.space"
           # Track resources by annotation (argocd.argoproj.io/tracking-id), the
           # Argo CD 3.0 default; avoids label clashes. Apps must be synced once
           # after the switch. Pin the reconcile interval explicitly so the chart
@@ -305,8 +305,8 @@ resource "helm_release" "argocd" {
           # Deny by default; members of Authentik group platform-admins are admins.
           "policy.default" = ""
           # Members of platform-dev and platform-viewer read everything; admins act.
-          "policy.csv"     = "g, platform-admins, role:admin\ng, platform-dev, role:readonly\ng, platform-viewer, role:readonly"
-          "scopes"         = "[groups]"
+          "policy.csv" = "g, platform-admins, role:admin\ng, platform-dev, role:readonly\ng, platform-viewer, role:readonly"
+          "scopes"     = "[groups]"
         }
       }
     })
