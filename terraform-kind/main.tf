@@ -65,7 +65,7 @@ resource "null_resource" "prometheus_operator_crds" {
 # Cilium's values live in the gitops repo. Read them from the published ref, not a
 # sibling working copy: a stale local checkout silently applied old values (twice).
 data "http" "cilium_values" {
-  url = "https://raw.githubusercontent.com/vedantaggrawal/repo-platform-gitops/${var.gitops_ref}/platform-apps/cilium/local/values.yaml"
+  url = "https://raw.githubusercontent.com/vedantaggrawal/repo-platform-gitops/${var.gitops_ref}/platform-apps/foundation/cilium/local/values.yaml"
 
   lifecycle {
     postcondition {
