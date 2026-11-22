@@ -295,7 +295,7 @@ resource "helm_release" "argocd" {
           # admin stays as break-glass.
           "oidc.config" = yamlencode({
             name                     = "Authentik"
-            issuer                   = "https://authentik.local.evelab.space:30443/application/o/argocd/"
+            issuer                   = "https://authentik.evelab.space/application/o/argocd/"
             clientID                 = "argocd"
             enablePKCEAuthentication = true
             requestedScopes          = ["openid", "profile", "email"]
