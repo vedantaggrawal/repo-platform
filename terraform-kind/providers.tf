@@ -20,6 +20,10 @@ terraform {
       source  = "grafana/grafana"
       version = "~> 4.52"
     }
+    gitea = {
+      source  = "go-gitea/gitea"
+      version = "~> 0.8.1"
+    }
   }
 }
 
